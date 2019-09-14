@@ -1,0 +1,12 @@
+{
+  "service": {
+    "name": "api",
+    "id":"api",
+    "address": "api",
+    "port": 9090,
+    "tags": ["upstream"],
+    "meta": {
+      "app":"api"
+    }
+  }
+}

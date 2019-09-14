@@ -1,0 +1,191 @@
+# Referenced at https://github.com/hashicorp/consul/blob/master/demo/docker-compose-cluster/docker-compose.yml
+
+version: '3.3'
+
+services:
+
+  haproxy:
+    image: haproxy:alpine
+    container_name: global_haproxy
+    volumes: 
+      - ./haproxy:/usr/local/etc/haproxy:ro
+    ports:
+      - "8350:8300"
+      - "8550:8500"
+    networks:
+      - consul-dc1   
+    depends_on:
+      - consul_s1
+      - consul_s2
+      - consul_s3
+
+# Create 5 Consul Servers 
+# consul_s(*) are for server agents
+# consul_a(*) are for client agents
+
+  consul_s1: &consul-server
+    image: hashicorp/consul-enterprise
+#   image: consul:latest
+    restart: always
+    volumes:
+      - ./config:/consul/config:rw
+      - /consul/data
+      - /etc/consul/logs
+    networks:
+      - consul-dc1
+    container_name: consul_s1
+    command: "agent -config-file=/consul/config/consul-server.hcl"
+
+  consul_s2: 
+    <<: *consul-server
+    container_name: consul_s2
+
+  consul_s3: 
+    <<: *consul-server
+    container_name: consul_s3
+    ports:
+      - "8600:8600"
+
+# Create 3 Consul Agents
+  consul_a1: &consul-agent
+    image: hashicorp/consul-enterprise
+    container_name: consul_a1
+    restart: always
+    volumes:
+      - ./config:/consul/config:rw
+      - /consul/data
+      - ./services/web.json:/consul/config/web.json
+    command: "agent -config-file=/consul/config/consul-client.hcl"
+    networks:
+      - consul-dc1
+    depends_on:
+      - consul_s1
+      - consul_s2
+      - consul_s3
+
+  consul_a2:
+    <<: *consul-agent
+    container_name: consul_a2    
+    volumes:
+      - ./config:/consul/config:rw
+      - /consul/data
+      - ./services/api.json:/consul/config/api.json
+      - ./services/clientms.json:/consul/config/clientms.json
+
+  consul_a3:
+    <<: *consul-agent
+    container_name: consul_a3      
+    volumes:
+      - ./config:/consul/config:rw
+      - /consul/data
+      - ./services/redis.json:/consul/config/redis.json
+
+  consul_a4:
+    <<: *consul-agent
+    container_name: consul_a4      
+    volumes:
+      - ./config:/consul/config:rw
+      - /consul/data
+      - ./dnsmasq/:/etc/dnsmasq
+    networks:
+      consul-dc1:
+        ipv4_address: 10.20.0.20
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus:/etc/prometheus:rw
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "9090:9090"
+    networks:
+      - consul-dc1
+    
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+     - "3000:3000"   
+    networks:
+      - consul-dc1       
+
+  web:
+    image: nicholasjackson/fake-service:v0.4.0
+    container_name: "web"
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      MESSAGE: "Hello World"
+      NAME: "web"
+      SERVER_TYPE: "http"
+      UPSTREAM_URIS: "http://api:9090"
+    ports:
+      - "10090:9090"
+    networks:
+      - consul-dc1
+    restart:
+      on-failure 
+    dns: dnsmasq
+  
+  api:
+    image: nicholasjackson/fake-service:v0.4.0
+    container_name: "api"
+    environment:
+      LISTEN_ADDR: 0.0.0.0:9090
+      MESSAGE: "API response"
+      NAME: "api"
+      SERVER_TYPE: "http"
+    ports:
+      - "10091:9090"
+    networks:
+      - consul-dc1
+    restart:
+      on-failure 
+
+  clientms:
+    image: kawsark/python-clientms
+    container_name: "clientms"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    networks:
+      - consul-dc1
+    ports:
+      - "5000:5000"
+    restart:
+      on-failure 
+
+  redis:
+    image: redis
+    container_name: "redis"
+    networks:
+      - consul-dc1
+    ports:
+      - "6379:6379"
+    restart:
+      on-failure 
+  
+  dnsmasq:
+    image: storytel/dnsmasq
+    container_name: "dnsmasq"
+    networks:
+      consul-dc1:
+        ipv4_address: "10.20.0.21"
+    ports:
+      - "8653:53/udp"
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./dnsmasq:/etc/dnsmasq:rw
+
+# Define Seperate Networks per DC
+networks:
+  consul-dc1:
+    ipam:
+      driver: default
+      config:
+        - subnet: "10.20.0.0/24"
+        
+
+

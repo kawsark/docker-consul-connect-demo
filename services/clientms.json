@@ -1,0 +1,12 @@
+{
+  "service": {
+    "name": "clientms",
+    "id":"clientms",
+    "address": "clientms",
+    "port": 5000,
+    "tags": ["frontend"],
+    "meta": {
+      "app":"clientms"
+    }
+  }
+}

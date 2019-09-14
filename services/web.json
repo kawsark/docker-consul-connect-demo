@@ -1,0 +1,12 @@
+{
+  "service": {
+    "name": "web",
+    "id":"web",
+    "address": "web",
+    "port": 9090,
+    "tags": ["frontend"],
+    "meta": {
+      "app":"web"
+    }
+  }
+}
