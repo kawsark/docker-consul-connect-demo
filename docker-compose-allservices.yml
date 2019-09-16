@@ -4,7 +4,22 @@ version: '3.3'
 
 services:
 
-# Create 1 Consul Servers 
+  haproxy:
+    image: haproxy:alpine
+    container_name: global_haproxy
+    volumes: 
+      - ./haproxy:/usr/local/etc/haproxy:ro
+    ports:
+      - "18300:8300"
+      - "18600:8600"
+    networks:
+      - consul-dc1   
+    depends_on:
+      - consul_s1
+      - consul_s2
+      - consul_s3
+
+# Create 5 Consul Servers 
 # consul_s(*) are for server agents
 # consul_a(*) are for client agents
 
@@ -20,6 +35,14 @@ services:
       - consul-dc1
     container_name: consul_s1
     command: "agent -config-file=/consul/config/consul-server.hcl"
+
+  consul_s2: 
+    <<: *consul-server
+    container_name: consul_s2
+
+  consul_s3: 
+    <<: *consul-server
+    container_name: consul_s3
     ports:
       - "8300:8300"
       - "8500:8500/tcp"
@@ -30,7 +53,7 @@ services:
       - "8302:8302/tcp"
       - "8302:8302/udp"
 
-# Create 2 Consul Agents
+# Create 3 Consul Agents
   consul_a1: &consul-agent
     image: hashicorp/consul-enterprise
     container_name: consul_a1
@@ -44,6 +67,8 @@ services:
       - consul-dc1
     depends_on:
       - consul_s1
+      - consul_s2
+      - consul_s3
 
   consul_a2:
     <<: *consul-agent
@@ -52,6 +77,15 @@ services:
       - ./config:/consul/config:rw
       - /consul/data
       - ./services/api.json:/consul/config/api.json
+      - ./services/clientms.json:/consul/config/clientms.json
+
+  consul_a3:
+    <<: *consul-agent
+    container_name: consul_a3      
+    volumes:
+      - ./config:/consul/config:rw
+      - /consul/data
+      - ./services/redis.json:/consul/config/redis.json
 
   prometheus:
     image: prom/prometheus:latest
@@ -103,6 +137,30 @@ services:
       - consul-dc1
     restart:
       on-failure 
+
+  clientms:
+    image: kawsark/python-clientms
+    container_name: "clientms"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    networks:
+      - consul-dc1
+    ports:
+      - "5000:5000"
+    restart:
+      on-failure 
+
+  redis:
+    image: redis
+    container_name: "redis"
+    networks:
+      - consul-dc1
+    ports:
+      - "6379:6379"
+    restart:
+      on-failure 
+  
 
 # Define Seperate Networks per DC 
 networks:

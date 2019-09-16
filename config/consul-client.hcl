@@ -6,7 +6,7 @@ client_addr = "0.0.0.0"
 bootstrap_expect = 0
 log_level = "trace"
 acl_enforce_version_8 = false
-retry_join = ["consul_s1", "consul_s2", "consul_s3"]
+retry_join = ["consul_s1"]
 ui = true
 enable_script_checks = true
 performance {

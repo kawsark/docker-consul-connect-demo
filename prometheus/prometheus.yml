@@ -37,17 +37,7 @@ scrape_configs:
     params:
       format: ['prometheus']
     static_configs:
-    - targets: ['consul_s1:8500','consul_s2:8500','consul_s3:8500','consul_s4:8500','consul_s5:8500','consul_a1:8500','consul_a2:8500','consul_a3:8500']
+    - targets: ['consul_s1:8500','consul_a1:8500','consul_a2:8500']
 
 #    consul_sd_configs:
 #      - server: 'consul_s1:8500'
-
-  - job_name: vault_job
-    metrics_path: '/v1/sys/metrics'
-    params:
-      format: ['prometheus']
-    bearer_token: 's.5cSnbPraJfvWbLySuoMceTz9'
-    static_configs:
-    - targets: ['vault_s1:8200','vault_s2:8200','vault_s3:8200']
-
-  
